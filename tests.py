@@ -10,6 +10,7 @@ from line import Point, Line
 from cell import Cell
 from grid import Grid
 from window import Window
+from snake import Snake
 
 
 class TestPoint(unittest.TestCase):
@@ -203,13 +204,6 @@ class TestGrid(unittest.TestCase):
         self.assertEqual(grid._win, self.mock_win)
         self.assertIsInstance(grid._cells, list)
 
-    def test_grid_initialization_with_seed(self):
-        """Test Grid initialization with seed"""
-        grid = Grid(0, 0, 2, 2, 10, 10, seed=42)
-        # Just verify it doesn't crash
-        self.assertEqual(len(grid._cells), 2)
-        self.assertEqual(len(grid._cells[0]), 2)
-
     def test_create_cells_structure(self):
         """Test that _create_cells creates correct 2D structure"""
         grid = Grid(0, 0, 3, 4, 10, 10)
@@ -283,6 +277,32 @@ class TestGrid(unittest.TestCase):
         # Should not raise an exception
         grid._draw_cell(0, 0)
 
+    def test_grid_initialization_contains_snake(self):
+        """Test Grid initialization creates a centered Snake"""
+        grid = Grid(0, 0, 3, 3, 10, 10, self.mock_win)
+
+        expected_center = (0 + (3 // 2) * 10, 0 + (3 // 2) * 10)
+        self.assertIsInstance(grid._center, Cell)
+        self.assertIsNotNone(grid.snake)
+        self.assertEqual(grid.snake.body[0], expected_center)
+        self.assertEqual(grid._center.coords, [1, 1])
+
+    def test_make_food_returns_none_when_no_empty_cells(self):
+        """Test that make_food returns None if there are no empty cells"""
+        grid = Grid(0, 0, 2, 2, 10, 10)
+
+        self.assertIsNone(grid.make_food())
+
+    def test_draw_cell_non_boundary(self):
+        """Test that _draw_cell does not draw for interior cells"""
+        grid = Grid(0, 0, 3, 3, 10, 10, self.mock_win)
+
+        # Reset mock to clear calls from grid initialization
+        self.mock_win.reset_mock()
+
+        grid._draw_cell(1, 1)
+        self.mock_win.draw_line.assert_not_called()
+
     def test_draw_cell_with_win(self):
         """Test that _draw_cell calls draw on appropriate walls"""
         grid = Grid(0, 0, 3, 3, 10, 10, self.mock_win)
@@ -318,6 +338,146 @@ class TestWindow(unittest.TestCase):
         """Test Window initialization with default size"""
         window = Window()
         self.assertIsNotNone(window)
+
+
+class TestSnake(unittest.TestCase):
+    """Test cases for the Snake class"""
+
+    def test_snake_initialization(self):
+        """Test that Snake is initialized with correct default values"""
+        center = (5, 5)
+        snake = Snake(center)
+
+        self.assertEqual(snake.body, [center])
+        self.assertEqual(snake.direction, "east")
+        self.assertFalse(snake.grow)
+
+    def test_move_east(self):
+        """Test moving snake east (default direction)"""
+        snake = Snake((5, 5))
+        snake.move()
+
+        expected_body = [(6, 5)]  # Moved right by 1
+        self.assertEqual(snake.body, expected_body)
+        self.assertEqual(len(snake.body), 1)  # Should not grow by default
+
+    def test_move_west(self):
+        """Test moving snake west"""
+        snake = Snake((5, 5))
+        snake.direction = "west"
+        snake.move()
+
+        expected_body = [(4, 5)]  # Moved left by 1
+        self.assertEqual(snake.body, expected_body)
+
+    def test_move_north(self):
+        """Test moving snake north"""
+        snake = Snake((5, 5))
+        snake.direction = "north"
+        snake.move()
+
+        expected_body = [(5, 4)]  # Moved up by 1
+        self.assertEqual(snake.body, expected_body)
+
+    def test_move_south(self):
+        """Test moving snake south"""
+        snake = Snake((5, 5))
+        snake.direction = "south"
+        snake.move()
+
+        expected_body = [(5, 6)]  # Moved down by 1
+        self.assertEqual(snake.body, expected_body)
+
+    def test_move_with_multiple_segments(self):
+        """Test moving snake with multiple body segments"""
+        snake = Snake((5, 5))
+        # Manually add segments to simulate growth
+        snake.body = [(5, 5), (4, 5), (3, 5)]
+        snake.move()
+
+        expected_body = [(6, 5), (5, 5), (4, 5)]  # Head moves, tail follows
+        self.assertEqual(snake.body, expected_body)
+
+    def test_grow_flag_true(self):
+        """Test that snake grows when grow flag is set"""
+        snake = Snake((5, 5))
+        snake.grow = True
+        snake.move()
+
+        expected_body = [(6, 5), (5, 5)]  # Head moves AND body grows
+        self.assertEqual(snake.body, expected_body)
+        self.assertFalse(snake.grow)  # Grow flag should reset after use
+
+    def test_grow_flag_false(self):
+        """Test that snake doesn't grow when grow flag is false"""
+        snake = Snake((5, 5))
+        snake.grow = False
+        snake.move()
+
+        expected_body = [(6, 5)]  # Only head moves, no growth
+        self.assertEqual(snake.body, expected_body)
+        self.assertFalse(snake.grow)  # Grow flag remains false
+
+    def test_change_direction_valid(self):
+        """Test changing direction to a valid new direction"""
+        snake = Snake((5, 5))
+        snake.direction = "east"
+
+        snake.change_direction("north")
+        self.assertEqual(snake.direction, "north")
+
+        snake.change_direction("west")
+        self.assertEqual(snake.direction, "west")
+
+    def test_change_direction_invalid_reverse(self):
+        """Test that snake cannot reverse direction onto itself"""
+        snake = Snake((5, 5))
+        snake.direction = "east"
+
+        # Try to reverse to west (opposite of east) - should be prevented
+        snake.change_direction("west")
+        self.assertEqual(snake.direction, "east")  # Direction should not change
+
+    def test_change_direction_all_opposites(self):
+        """Test preventing reversal in all directions"""
+        test_cases = [
+            ("east", "west"),
+            ("west", "east"),
+            ("north", "south"),
+            ("south", "north")
+        ]
+
+        for current_dir, opposite_dir in test_cases:
+            with self.subTest(current=current_dir, opposite=opposite_dir):
+                snake = Snake((5, 5))
+                snake.direction = current_dir
+                snake.change_direction(opposite_dir)
+                self.assertEqual(snake.direction, current_dir,
+                               f"Should not allow reversing from {current_dir} to {opposite_dir}")
+
+    def test_change_direction_same_direction(self):
+        """Test changing to the same direction (should be allowed)"""
+        snake = Snake((5, 5))
+        snake.direction = "east"
+        snake.change_direction("east")
+        self.assertEqual(snake.direction, "east")
+
+    def test_multiple_moves_with_growth(self):
+        """Test multiple moves with intermittent growth"""
+        snake = Snake((5, 5))
+
+        # Move 1: normal move
+        snake.move()
+        self.assertEqual(snake.body, [(6, 5)])
+
+        # Move 2: with growth
+        snake.grow = True
+        snake.move()
+        self.assertEqual(snake.body, [(7, 5), (6, 5)])
+
+        # Move 3: normal move
+        snake.move()
+        self.assertEqual(snake.body, [(8, 5), (7, 5)])
 
 
 if __name__ == '__main__':

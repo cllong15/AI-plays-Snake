@@ -12,6 +12,7 @@ class Cell():
 		self.y1 = None
 		self.x2 = None
 		self.y2 = None
+		self.food = False
 		self._win = win
 		self._grid = grid
 

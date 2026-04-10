@@ -1,18 +1,14 @@
 from tkinter import Tk, BOTH, Canvas
 from window import Window
 from grid import Grid
+from constants import *
 
 def main():
-	num_rows = 20
-	num_cols = 20
-	margin = 10
-	screen_x = 550
-	screen_y = 550
-	cell_size_x = (screen_x - 2 * margin) / num_cols
-	cell_size_y = (screen_y - 2 * margin) / num_rows
-	win = Window(screen_x, screen_y)
+	if SIDE % 2 == 0:
+		raise ValueError("Side length must be odd to have a center cell.")
+	win = Window(SCREEN_SIDE, SCREEN_SIDE)
 
-	maze = Grid(margin, margin, num_rows, num_cols, cell_size_x, cell_size_y, win)
+	maze = Grid(MARGIN, MARGIN, SIDE, SIDE, CELL_SIZE_X, CELL_SIZE_Y, win)
 
 	win.mainloop()
 
