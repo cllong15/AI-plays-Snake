@@ -1,5 +1,6 @@
-SIDE = 21
+NUM_CELL = 101 # Squared: must be odd for the snake to start in the center
 MARGIN = 0
 SCREEN_SIDE = 550
-CELL_SIZE_X = (SCREEN_SIDE - 2 * MARGIN) / SIDE
-CELL_SIZE_Y = (SCREEN_SIDE - 2 * MARGIN) / SIDE
+CELL_SIZE_X = (SCREEN_SIDE - 2 * MARGIN) / NUM_CELL
+CELL_SIZE_Y = (SCREEN_SIDE - 2 * MARGIN) / NUM_CELL
+DEBUG = True

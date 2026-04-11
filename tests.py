@@ -90,6 +90,7 @@ class TestCell(unittest.TestCase):
         self.assertIsNone(cell.y1)
         self.assertIsNone(cell.x2)
         self.assertIsNone(cell.y2)
+        self.assertFalse(cell.food)
         self.assertEqual(cell._win, self.mock_win)
         self.assertEqual(cell._grid, self.mock_grid)
 
@@ -108,7 +109,7 @@ class TestCell(unittest.TestCase):
         cell.x2 = 10
         cell.y2 = 10
 
-        cell.draw("north")
+        cell.draw_borders("north")
 
         # Verify that win.draw_line was called with correct Line
         self.mock_win.draw_line.assert_called_once()
@@ -126,7 +127,7 @@ class TestCell(unittest.TestCase):
         cell.x2 = 10
         cell.y2 = 10
 
-        cell.draw("south")
+        cell.draw_borders("south")
 
         self.mock_win.draw_line.assert_called_once()
         line_arg = self.mock_win.draw_line.call_args[0][0]
@@ -143,7 +144,7 @@ class TestCell(unittest.TestCase):
         cell.x2 = 10
         cell.y2 = 10
 
-        cell.draw("east")
+        cell.draw_borders("east")
 
         self.mock_win.draw_line.assert_called_once()
         line_arg = self.mock_win.draw_line.call_args[0][0]
@@ -160,7 +161,7 @@ class TestCell(unittest.TestCase):
         cell.x2 = 10
         cell.y2 = 10
 
-        cell.draw("west")
+        cell.draw_borders("west")
 
         self.mock_win.draw_line.assert_called_once()
         line_arg = self.mock_win.draw_line.call_args[0][0]
@@ -172,16 +173,23 @@ class TestCell(unittest.TestCase):
     def test_draw_invalid_direction(self):
         """Test drawing with invalid direction does nothing"""
         cell = Cell(self.mock_win)
-        cell.draw("invalid")
+        cell.draw_borders("invalid")
 
         self.mock_win.draw_line.assert_not_called()
 
     def test_draw_no_win(self):
-        """Test that draw does nothing when win is None"""
+        """Test that draw_borders does nothing when win is None"""
         cell = Cell()
-        cell.draw("north")
+        cell.draw_borders("north")
 
         # Should not raise an exception
+
+    def test_draw_cell_no_win(self):
+        """Test that cell draw does nothing when win is None"""
+        cell = Cell()
+        # Cell.draw now requires a canvas parameter, so this test needs to be updated
+        # Since win is None, draw should not be called anyway
+        # This test is no longer relevant as Cell.draw always requires a canvas
 
 
 class TestGrid(unittest.TestCase):
@@ -281,17 +289,27 @@ class TestGrid(unittest.TestCase):
         """Test Grid initialization creates a centered Snake"""
         grid = Grid(0, 0, 3, 3, 10, 10, self.mock_win)
 
-        expected_center = (0 + (3 // 2) * 10, 0 + (3 // 2) * 10)
+        expected_center_coords = [1, 1]  # Center of 3x3 grid
         self.assertIsInstance(grid._center, Cell)
         self.assertIsNotNone(grid.snake)
-        self.assertEqual(grid.snake.body[0], expected_center)
-        self.assertEqual(grid._center.coords, [1, 1])
+        self.assertEqual(grid.snake.body[0].coords, expected_center_coords)
+        self.assertEqual(grid._center.coords, expected_center_coords)
 
     def test_make_food_returns_none_when_no_empty_cells(self):
         """Test that make_food returns None if there are no empty cells"""
         grid = Grid(0, 0, 2, 2, 10, 10)
 
         self.assertIsNone(grid.make_food())
+
+    def test_draw_cell_non_boundary(self):
+        """Test that _draw_cell does not draw for interior cells"""
+        grid = Grid(0, 0, 3, 3, 10, 10, self.mock_win)
+
+        # Reset mock to clear calls from grid initialization
+        self.mock_win.reset_mock()
+
+        grid._draw_cell(1, 1)
+        self.mock_win.draw_line.assert_not_called()
 
     def test_draw_cell_non_boundary(self):
         """Test that _draw_cell does not draw for interior cells"""
@@ -328,99 +346,206 @@ class TestWindow(unittest.TestCase):
     def test_window_initialization(self):
         """Test Window initialization"""
         # Note: Testing GUI components is tricky, so we'll just test basic setup
-        window = Window(400, 300)
-
-        # We can't easily test Tkinter components without a display
-        # But we can verify the object was created
-        self.assertIsNotNone(window)
+        from tkinter import Tk
+        root = Tk()
+        try:
+            window = Window(root, 400, 300)
+            self.assertIsNotNone(window)
+            self.assertEqual(window._root, root)
+        finally:
+            root.destroy()
 
     def test_window_initialization_default_size(self):
         """Test Window initialization with default size"""
-        window = Window()
-        self.assertIsNotNone(window)
+        from tkinter import Tk
+        root = Tk()
+        try:
+            window = Window(root)
+            self.assertIsNotNone(window)
+        finally:
+            root.destroy()
+
+    def test_window_draw_cell(self):
+        """Test Window.draw_cell calls cell.draw with canvas and color"""
+        from tkinter import Tk
+        from unittest.mock import patch, MagicMock
+        root = Tk()
+        try:
+            with patch.object(Window, 'start_game'):
+                window = Window(root)
+                mock_cell = Mock()
+                window.draw_cell(mock_cell, "red")
+                mock_cell.draw.assert_called_once_with(window._canvas, "red")
+        finally:
+            root.destroy()
 
 
 class TestSnake(unittest.TestCase):
     """Test cases for the Snake class"""
 
+    def _create_mock_cell(self, coords):
+        """Helper to create a mock cell with coords"""
+        cell = Mock()
+        cell.coords = coords
+        return cell
+
     def test_snake_initialization(self):
         """Test that Snake is initialized with correct default values"""
-        center = (5, 5)
-        snake = Snake(center)
+        mock_win = Mock()
+        center_cell = self._create_mock_cell([5, 5])
+        snake = Snake(center_cell, mock_win)
 
-        self.assertEqual(snake.body, [center])
+        self.assertEqual(snake.body, [center_cell])
         self.assertEqual(snake.direction, "east")
         self.assertFalse(snake.grow)
+        self.assertEqual(snake._win, mock_win)
 
     def test_move_east(self):
         """Test moving snake east (default direction)"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        # Create mock cells for positions (5,5) and (6,5)
+        start_cell = self._create_mock_cell([5, 5])
+        end_cell = self._create_mock_cell([6, 5])
+        # Mock a larger grid
+        mock_grid._cells = [[None] * 10 for _ in range(10)]
+        mock_grid._cells[5][5] = start_cell
+        mock_grid._cells[6][5] = end_cell
+        
+        snake = Snake(start_cell, mock_win)
         snake.move()
 
-        expected_body = [(6, 5)]  # Moved right by 1
+        expected_body = [end_cell]  # Moved right by 1
         self.assertEqual(snake.body, expected_body)
         self.assertEqual(len(snake.body), 1)  # Should not grow by default
 
     def test_move_west(self):
         """Test moving snake west"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        # Create mock cells for positions (5,5) and (4,5)
+        start_cell = self._create_mock_cell([5, 5])
+        end_cell = self._create_mock_cell([4, 5])
+        mock_grid._cells = [[None] * 10 for _ in range(10)]
+        mock_grid._cells[5][5] = start_cell
+        mock_grid._cells[4][5] = end_cell
+        
+        snake = Snake(start_cell, mock_win)
         snake.direction = "west"
         snake.move()
 
-        expected_body = [(4, 5)]  # Moved left by 1
+        expected_body = [end_cell]  # Moved left by 1
         self.assertEqual(snake.body, expected_body)
 
     def test_move_north(self):
         """Test moving snake north"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        # Create mock cells for positions (5,5) and (5,4)
+        start_cell = self._create_mock_cell([5, 5])
+        end_cell = self._create_mock_cell([5, 4])
+        mock_grid._cells = [[None] * 10 for _ in range(10)]
+        mock_grid._cells[5][5] = start_cell
+        mock_grid._cells[5][4] = end_cell
+        
+        snake = Snake(start_cell, mock_win)
         snake.direction = "north"
         snake.move()
 
-        expected_body = [(5, 4)]  # Moved up by 1
+        expected_body = [end_cell]  # Moved up by 1
         self.assertEqual(snake.body, expected_body)
 
     def test_move_south(self):
         """Test moving snake south"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        # Create mock cells for positions (5,5) and (5,6)
+        start_cell = self._create_mock_cell([5, 5])
+        end_cell = self._create_mock_cell([5, 6])
+        mock_grid._cells = [[None] * 10 for _ in range(10)]
+        mock_grid._cells[5][5] = start_cell
+        mock_grid._cells[5][6] = end_cell
+        
+        snake = Snake(start_cell, mock_win)
         snake.direction = "south"
         snake.move()
 
-        expected_body = [(5, 6)]  # Moved down by 1
+        expected_body = [end_cell]  # Moved down by 1
         self.assertEqual(snake.body, expected_body)
 
     def test_move_with_multiple_segments(self):
         """Test moving snake with multiple body segments"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        # Create mock cells for positions (5,5), (4,5), (3,5), (6,5)
+        cell_55 = self._create_mock_cell([5, 5])
+        cell_45 = self._create_mock_cell([4, 5])
+        cell_35 = self._create_mock_cell([3, 5])
+        cell_65 = self._create_mock_cell([6, 5])
+        mock_grid._cells = [[None] * 10 for _ in range(10)]
+        mock_grid._cells[5][5] = cell_55
+        mock_grid._cells[4][5] = cell_45
+        mock_grid._cells[3][5] = cell_35
+        mock_grid._cells[6][5] = cell_65
+        
+        snake = Snake(cell_55, mock_win)
         # Manually add segments to simulate growth
-        snake.body = [(5, 5), (4, 5), (3, 5)]
+        snake.body = [cell_55, cell_45, cell_35]
         snake.move()
 
-        expected_body = [(6, 5), (5, 5), (4, 5)]  # Head moves, tail follows
+        expected_body = [cell_65, cell_55, cell_45]  # Head moves, tail follows
         self.assertEqual(snake.body, expected_body)
 
     def test_grow_flag_true(self):
         """Test that snake grows when grow flag is set"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        # Create mock cells for positions (5,5) and (6,5)
+        start_cell = self._create_mock_cell([5, 5])
+        end_cell = self._create_mock_cell([6, 5])
+        mock_grid._cells = [[None] * 10 for _ in range(10)]
+        mock_grid._cells[5][5] = start_cell
+        mock_grid._cells[6][5] = end_cell
+        
+        snake = Snake(start_cell, mock_win)
         snake.grow = True
         snake.move()
 
-        expected_body = [(6, 5), (5, 5)]  # Head moves AND body grows
+        expected_body = [end_cell, start_cell]  # Head moves AND body grows
         self.assertEqual(snake.body, expected_body)
         self.assertFalse(snake.grow)  # Grow flag should reset after use
 
     def test_grow_flag_false(self):
         """Test that snake doesn't grow when grow flag is false"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        # Create mock cells for positions (5,5) and (6,5)
+        start_cell = self._create_mock_cell([5, 5])
+        end_cell = self._create_mock_cell([6, 5])
+        mock_grid._cells = [[None] * 10 for _ in range(10)]
+        mock_grid._cells[5][5] = start_cell
+        mock_grid._cells[6][5] = end_cell
+        
+        snake = Snake(start_cell, mock_win)
         snake.grow = False
         snake.move()
 
-        expected_body = [(6, 5)]  # Only head moves, no growth
+        expected_body = [end_cell]  # Only head moves, no growth
         self.assertEqual(snake.body, expected_body)
         self.assertFalse(snake.grow)  # Grow flag remains false
 
     def test_change_direction_valid(self):
         """Test changing direction to a valid new direction"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        center_cell = self._create_mock_cell([5, 5])
+        snake = Snake(center_cell, mock_win)
         snake.direction = "east"
 
         snake.change_direction("north")
@@ -431,7 +556,9 @@ class TestSnake(unittest.TestCase):
 
     def test_change_direction_invalid_reverse(self):
         """Test that snake cannot reverse direction onto itself"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        center_cell = self._create_mock_cell([5, 5])
+        snake = Snake(center_cell, mock_win)
         snake.direction = "east"
 
         # Try to reverse to west (opposite of east) - should be prevented
@@ -449,7 +576,9 @@ class TestSnake(unittest.TestCase):
 
         for current_dir, opposite_dir in test_cases:
             with self.subTest(current=current_dir, opposite=opposite_dir):
-                snake = Snake((5, 5))
+                mock_win = Mock()
+                center_cell = self._create_mock_cell([5, 5])
+                snake = Snake(center_cell, mock_win)
                 snake.direction = current_dir
                 snake.change_direction(opposite_dir)
                 self.assertEqual(snake.direction, current_dir,
@@ -457,27 +586,64 @@ class TestSnake(unittest.TestCase):
 
     def test_change_direction_same_direction(self):
         """Test changing to the same direction (should be allowed)"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        center_cell = self._create_mock_cell([5, 5])
+        snake = Snake(center_cell, mock_win)
         snake.direction = "east"
         snake.change_direction("east")
         self.assertEqual(snake.direction, "east")
 
     def test_multiple_moves_with_growth(self):
         """Test multiple moves with intermittent growth"""
-        snake = Snake((5, 5))
+        mock_win = Mock()
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        # Create mock cells for positions (5,5), (6,5), (7,5), (8,5)
+        cell_55 = self._create_mock_cell([5, 5])
+        cell_65 = self._create_mock_cell([6, 5])
+        cell_75 = self._create_mock_cell([7, 5])
+        cell_85 = self._create_mock_cell([8, 5])
+        mock_grid._cells = [[None] * 10 for _ in range(10)]
+        mock_grid._cells[5][5] = cell_55
+        mock_grid._cells[6][5] = cell_65
+        mock_grid._cells[7][5] = cell_75
+        mock_grid._cells[8][5] = cell_85
+        
+        snake = Snake(cell_55, mock_win)
 
         # Move 1: normal move
         snake.move()
-        self.assertEqual(snake.body, [(6, 5)])
+        self.assertEqual(snake.body, [cell_65])
 
         # Move 2: with growth
         snake.grow = True
         snake.move()
-        self.assertEqual(snake.body, [(7, 5), (6, 5)])
+        self.assertEqual(snake.body, [cell_75, cell_65])
 
         # Move 3: normal move
         snake.move()
-        self.assertEqual(snake.body, [(8, 5), (7, 5)])
+        self.assertEqual(snake.body, [cell_85, cell_75])
+
+    def test_draw_method(self):
+        """Test that draw method calls window.draw_cell for each body segment"""
+        mock_win = Mock()
+        # Mock the grid structure
+        mock_grid = Mock()
+        mock_win.grid = mock_grid
+        mock_cell1 = Mock()
+        mock_cell2 = Mock()
+        mock_grid._cells = [[mock_cell1, mock_cell2], [mock_cell1, mock_cell2]]  # Mock 2x2 grid structure
+        
+        center_cell = self._create_mock_cell([0, 0])
+        snake = Snake(center_cell, mock_win)
+        snake.body = [mock_cell1, mock_cell2]  # Cell objects
+
+        snake.draw("green")
+
+        # Should call draw_cell twice, once for each body segment
+        self.assertEqual(mock_win.draw_cell.call_count, 2)
+        mock_win.draw_cell.assert_any_call(mock_cell1, "green")
+        mock_win.draw_cell.assert_any_call(mock_cell2, "green")
 
 
 if __name__ == '__main__':

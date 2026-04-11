@@ -23,10 +23,10 @@ class Grid:
 		self._cell_size_x = cell_size_x
 		self._cell_size_y = cell_size_y
 		self._win = win
-		self._center = x1 + (num_cols // 2) * cell_size_x, y1 + (num_rows // 2) * cell_size_y
-		self.snake = Snake(self._center)
+		self._center = None
 
 		self._create_cells()
+		self.snake = Snake(self._center, self._win)
 
 	def _create_cells(self):
 		for i in range(self._num_cols):
@@ -50,25 +50,25 @@ class Grid:
 				if j < self._num_rows - 1:
 					self._cells[i][j].south = self._cells[i][j + 1]
 				self._draw_cell(i, j)
-		self._center = self._cells[self._num_cols // 2][self._num_rows // 2]
+		self._center = self._cells[(self._num_cols - 1) // 2][(self._num_rows - 1) // 2]
+		# print(self._center.coords)
 
 	def _draw_cell(self, i , j):
 		if self._win is None:
 			return
 		if i == 0:
-			self._cells[i][j].draw("west")
+			self._cells[i][j].draw_borders("west")
 		if i == self._num_cols - 1:
-			self._cells[i][j].draw("east")
+			self._cells[i][j].draw_borders("east")
 		if j == 0:
-			self._cells[i][j].draw("north")
+			self._cells[i][j].draw_borders("north")
 		if j == self._num_rows - 1:
-			self._cells[i][j].draw("south")
-		
-	def make_food(self):
-		empty_cells = []
+			self._cells[i][j].draw_borders("south")
 
+	def make_food(self):
+		empty_cells = [cell for col in self._cells for cell in col if not cell.food and cell not in self.snake.body]
 		if not empty_cells:
 			return None
 		food_cell = random.choice(empty_cells)
+		self.food = food_cell
 		food_cell.food = True
-		return food_cell

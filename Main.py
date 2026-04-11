@@ -1,16 +1,16 @@
-from tkinter import Tk, BOTH, Canvas
+from tkinter import Tk
 from window import Window
-from grid import Grid
 from constants import *
 
 def main():
-	if SIDE % 2 == 0:
-		raise ValueError("Side length must be odd to have a center cell.")
-	win = Window(SCREEN_SIDE, SCREEN_SIDE)
+	if NUM_CELL % 2 == 0:
+		raise ValueError("NUM_CELL must be odd to have a center cell.")
 
-	maze = Grid(MARGIN, MARGIN, SIDE, SIDE, CELL_SIZE_X, CELL_SIZE_Y, win)
+	root = Tk()
 
-	win.mainloop()
+	win = Window(root, SCREEN_SIDE, SCREEN_SIDE)
+
+	root.mainloop()
 
 
 if __name__ == "__main__":

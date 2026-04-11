@@ -16,7 +16,7 @@ class Cell():
 		self._win = win
 		self._grid = grid
 
-	def draw(self, direction):
+	def draw_borders(self, direction):
 		if self._win is None:
 			return
 		match direction:
@@ -28,3 +28,15 @@ class Cell():
 				self._win.draw_line(Line(Point(self.x2, self.y1), Point(self.x2, self.y2)))
 			case "west":
 				self._win.draw_line(Line(Point(self.x1, self.y1), Point(self.x1, self.y2)))
+# Canvas.create_rectangle
+	def draw(self, canvas, fill_color="white"):
+		canvas.create_rectangle(
+			self.x1,
+			self.y1,
+			self.x2,
+			self.y2,
+			fill=fill_color
+			)
+		
+	def __repr__(self):
+		return f"Cell({self.coords})"
