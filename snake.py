@@ -41,7 +41,11 @@ class Snake:
 		self.body.insert(0, new_head_cell)  # Add new head to the beginning of the body
 
 		if not new_head_cell.food:
-			self.body.pop()  # Remove the last segment of the body
+			old = self.body.pop()  # Remove the last segment of the body
+			self._win.draw_cell(old, "black")  # Clear the old tail cell
+		else:
+			self._win.grid.food = None  # Remove the food from the grid
+			self._win.grid.make_food()  # Create new food
 		
 		if self.collision():
 			constants.exit = True  # End the game if there's a collision

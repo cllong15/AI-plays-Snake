@@ -13,7 +13,7 @@ class Grid:
 			num_cols,
 			cell_size_x,
 			cell_size_y,
-			win=None
+			win
 	):
 		self._cells = []
 		self._x1 = x1
@@ -27,6 +27,8 @@ class Grid:
 
 		self._create_cells()
 		self.snake = Snake(self._center, self._win)
+		self.food = None
+		self.make_food()
 
 	def _create_cells(self):
 		for i in range(self._num_cols):
@@ -71,3 +73,5 @@ class Grid:
 		food_cell = random.choice(empty_cells)
 		self.food = food_cell
 		food_cell.food = True
+		if self._win is not None:
+			self._win.draw_cell(food_cell, "red")

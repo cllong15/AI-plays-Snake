@@ -12,6 +12,11 @@ def main():
 	win = Window(root, constants.SCREEN_SIDE, constants.SCREEN_SIDE)
 
 	while constants.exit is False:
+		try:
+			if not root.winfo_exists():
+				break
+		except:
+			break  # Window has been destroyed
 		win.grid.snake.change_direction(random.choice(["north", "south", "east", "west"]))  # Example: change direction to east
 		win.grid.snake.move()
 		win.update()
