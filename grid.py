@@ -49,11 +49,10 @@ class Grid:
 					self._cells[i][j].north = self._cells[i][j - 1]
 				if j < self._num_rows - 1:
 					self._cells[i][j].south = self._cells[i][j + 1]
-				self._draw_cell(i, j)
+				self._draw_borders(i, j)
 		self._center = self._cells[(self._num_cols - 1) // 2][(self._num_rows - 1) // 2]
-		# print(self._center.coords)
 
-	def _draw_cell(self, i , j):
+	def _draw_borders(self, i , j):
 		if self._win is None:
 			return
 		if i == 0:
