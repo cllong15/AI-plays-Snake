@@ -52,7 +52,7 @@ class Grid:
 				if j < self._num_rows - 1:
 					self._cells[i][j].south = self._cells[i][j + 1]
 				self._draw_borders(i, j)
-		self._center = self._cells[(self._num_cols - 1) // 2][(self._num_rows - 1) // 2]
+		self._center = self._cells[(self._num_cols) // 2][(self._num_rows) // 2]
 
 	def _draw_borders(self, i , j):
 		if self._win is None:
@@ -75,3 +75,6 @@ class Grid:
 		food_cell.food = True
 		if self._win is not None:
 			self._win.draw_cell(food_cell, "red")
+
+	def get_cell(self, coords):
+		return self._cells[coords[0]][coords[1]]

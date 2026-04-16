@@ -1,7 +1,7 @@
 import time
 from tkinter import BOTH, Canvas
 
-from constants import *
+from constants import constants
 from grid import Grid
 
 class Window:

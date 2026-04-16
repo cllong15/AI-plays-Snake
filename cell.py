@@ -38,5 +38,26 @@ class Cell():
 			fill=fill_color
 			)
 		
+	def next_cell(self, direction):
+		match direction:
+			case "north" | "no":
+				return self.north
+			case "south" | "so":
+				return self.south
+			case "east" | "ea":
+				return self.east
+			case "west" | "we":
+				return self.west
+			case "northwest" | "nw":
+				return self.north.west if self.north and self.north.west else None
+			case "northeast" | "ne":
+				return self.north.east if self.north and self.north.east else None
+			case "southwest" | "sw":
+				return self.south.west if self.south and self.south.west else None
+			case "southeast" | "se":
+				return self.south.east if self.south and self.south.east else None
+			case _:
+				raise ValueError(f"Invalid direction: {direction}")
+		
 	def __repr__(self):
 		return f"Cell({self.coords})"
